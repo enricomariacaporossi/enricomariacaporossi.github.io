@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Channel Test</title>
+<style>
+  :root{
+    --panel:#b6c2bc;
+    --panel-hi:#c9d3ce;
+    --panel-lo:#94a29c;
+    --face:#16211f;
+    --ink:#1b2422;
+    --phos:#6fdfa8;
+    --lamp:#e8a33d;
+    --screw:#7c8a85;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --disp: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% 0%, var(--panel-hi), var(--panel) 45%, var(--panel-lo) 100%);
+    color:var(--ink);
+    font-family:var(--mono);
+    display:flex; justify-content:center;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 14px);
+  }
+  .unit{width:100%; max-width:440px; display:flex; flex-direction:column; gap:14px; padding:16px 0 0;}
+
+  header{display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid rgba(27,36,34,.35); padding-bottom:8px;}
+  .title{font-size:12px; letter-spacing:.22em; text-transform:uppercase;}
+  .spec{font-size:11px; letter-spacing:.12em; opacity:.65;}
+
+  /* ---- lamps ---- */
+  .lamps{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .lamp{
+    position:relative; background:var(--face); border-radius:4px;
+    border:1px solid #0b1211;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 0 rgba(255,255,255,.35);
+    aspect-ratio:1/1.15; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .glyph{
+    font-family:var(--disp); font-weight:800; font-size:clamp(56px,20vw,92px);
+    letter-spacing:-.03em; color:#2f403c; transition:color .12s linear, text-shadow .12s linear;
+  }
+  .lamp.on .glyph{ color:var(--lamp); text-shadow:0 0 18px rgba(232,163,61,.55); }
+  .meter{position:absolute; left:0; right:0; bottom:0; height:0%;
+    background:linear-gradient(0deg, rgba(111,223,168,.30), rgba(111,223,168,.06));
+    border-top:1px solid var(--phos);}
+  .tag{position:absolute; top:6px; left:8px; font-size:9px; letter-spacing:.2em; color:#5d716b;}
+
+  /* ---- pan field ---- */
+  .field{position:relative; height:26px;}
+  .field .rail{position:absolute; top:12px; left:0; right:0; height:1px; background:rgba(27,36,34,.45);}
+  .field .dot{position:absolute; top:6px; width:13px; height:13px; margin-left:-6.5px;
+    border-radius:50%; background:var(--ink); left:50%;}
+  .field .ends{display:flex; justify-content:space-between; font-size:10px;
+    letter-spacing:.2em; padding-top:18px; opacity:.6;}
+
+  /* ---- controls ---- */
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink); background:linear-gradient(180deg,#cdd7d2,#a9b6b0);
+    border:1px solid rgba(27,36,34,.4); border-radius:3px; padding:15px 8px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.18);
+  }
+  button:active{background:linear-gradient(180deg,#9fada7,#b7c2bd); box-shadow:inset 0 2px 4px rgba(0,0,0,.28);}
+  button[aria-pressed="true"]{background:var(--face); color:var(--phos); border-color:#0b1211;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.6);}
+  button:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+  .stop{grid-column:1/-1; background:linear-gradient(180deg,#c4b0a6,#a4908a);}
+
+  .src{display:flex; gap:8px; align-items:center; font-size:11px; letter-spacing:.14em;}
+  .src button{flex:1; padding:11px 6px;}
+
+  .note{font-size:11px; line-height:1.6; letter-spacing:.02em; opacity:.7;
+    border-top:1px solid rgba(27,36,34,.3); padding-top:10px;}
+  .note b{font-weight:600;}
+</style>
+</head>
+<body>
+<div class="unit">
+  <header>
+    <div class="title">Stereo Channel Test</div>
+    <div class="spec" id="spec">440 Hz</div>
+  </header>
+
+  <div class="lamps">
+    <div class="lamp" id="lampL"><span class="tag">CH 1</span><div class="meter" id="mtrL"></div><span class="glyph">L</span></div>
+    <div class="lamp" id="lampR"><span class="tag">CH 2</span><div class="meter" id="mtrR"></div><span class="glyph">R</span></div>
+  </div>
+
+  <div class="field">
+    <div class="rail"></div>
+    <div class="dot" id="dot"></div>
+    <div class="ends"><span>LEFT</span><span>CENTER</span><span>RIGHT</span></div>
+  </div>
+
+  <div class="grid">
+    <button data-mode="left">Left only</button>
+    <button data-mode="right">Right only</button>
+    <button data-mode="both">Both</button>
+    <button data-mode="alt">Alternate</button>
+    <button data-mode="sweep" style="grid-column:1/-1">Sweep L → R</button>
+    <button class="stop" id="stop">Stop</button>
+  </div>
+
+  <div class="src">
+    <button id="srcTone" aria-pressed="true">Tone</button>
+    <button id="srcNoise" aria-pressed="false">Noise</button>
+  </div>
+
+  <p class="note">
+    Wearing headphones? The lit lamp should match the ear you hear.
+    If they're swapped, the buds are in the wrong ears.
+    If one side is silent, check <b>Settings → Accessibility → Audio &amp; Visual → Balance</b>.
+    On iPhone, turn the ringer switch off silent — the mute switch also mutes this page.
+  </p>
+</div>
+
+<script>
+(function(){
+  var ctx, osc, noise, gL, gR, aL, aR, merger, running=false, mode=null, src="tone";
+  var altTimer=null, sweepStart=0, raf=null;
+  var lampL=document.getElementById('lampL'), lampR=document.getElementById('lampR');
+  var mtrL=document.getElementById('mtrL'), mtrR=document.getElementById('mtrR');
+  var dot=document.getElementById('dot'), spec=document.getElementById('spec');
+  var bufL=new Uint8Array(256), bufR=new Uint8Array(256);
+
+  function build(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    gL = ctx.createGain(); gR = ctx.createGain();
+    gL.gain.value = 0; gR.gain.value = 0;
+    aL = ctx.createAnalyser(); aR = ctx.createAnalyser();
+    aL.fftSize = 512; aR.fftSize = 512;
+    merger = ctx.createChannelMerger(2);
+    gL.connect(aL); aL.connect(merger, 0, 0);
+    gR.connect(aR); aR.connect(merger, 0, 1);
+    merger.connect(ctx.destination);
+
+    osc = ctx.createOscillator();
+    osc.type = "sine"; osc.frequency.value = 440;
+
+    var len = Math.floor(ctx.sampleRate * 2), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+    var last = 0;
+    for (var i=0;i<len;i++){ var w = Math.random()*2-1; last = (last + 0.02*w)/1.02; d[i] = last*3.5; }
+    noise = ctx.createBufferSource(); noise.buffer = b; noise.loop = true;
+
+    osc.start(); noise.start();
+    setSource(src, true);
+  }
+
+  function setSource(which, silent){
+    src = which;
+    document.getElementById('srcTone').setAttribute('aria-pressed', String(which==="tone"));
+    document.getElementById('srcNoise').setAttribute('aria-pressed', String(which==="noise"));
+    spec.textContent = which==="tone" ? "440 Hz" : "Pink noise";
+    if (!ctx) return;
+    try{ osc.disconnect(); }catch(e){}
+    try{ noise.disconnect(); }catch(e){}
+    var node = which==="tone" ? osc : noise;
+    node.connect(gL); node.connect(gR);
+    if (!silent && running) apply(mode);
+  }
+
+  function ramp(node, v){
+    var t = ctx.currentTime;
+    node.gain.cancelScheduledValues(t);
+    node.gain.setValueAtTime(node.gain.value, t);
+    node.gain.linearRampToValueAtTime(v, t + 0.04);
+  }
+
+  var LEVEL = 0.22;
+
+  function apply(m){
+    if (m === "left"){ ramp(gL, LEVEL); ramp(gR, 0); }
+    else if (m === "right"){ ramp(gL, 0); ramp(gR, LEVEL); }
+    else if (m === "both"){ ramp(gL, LEVEL); ramp(gR, LEVEL); }
+  }
+
+  function clearTimers(){
+    if (altTimer){ clearInterval(altTimer); altTimer = null; }
+  }
+
+  function start(m){
+    if (!ctx) build();
+    if (ctx.state === "suspended") ctx.resume();
+    clearTimers();
+    mode = m; running = true;
+    document.querySelectorAll('[data-mode]').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+    });
+
+    if (m === "alt"){
+      var side = true;
+      apply("left");
+      altTimer = setInterval(function(){ side = !side; apply(side ? "left" : "right"); }, 1300);
+    } else if (m === "sweep"){
+      sweepStart = ctx.currentTime;
+    } else {
+      apply(m);
+    }
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+
+  function stop(){
+    running = false; mode = null; clearTimers();
+    document.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed','false'); });
+    if (ctx){ ramp(gL, 0); ramp(gR, 0); }
+  }
+
+  function tick(){
+    if (ctx && running && mode === "sweep"){
+      var p = ((ctx.currentTime - sweepStart) % 6) / 6;          // 0..1
+      var x = (1 - Math.cos(p * Math.PI * 2)) / 2;                // 0 → 1 → 0
+      gL.gain.value = Math.cos(x * Math.PI/2) * LEVEL;            // equal power
+      gR.gain.value = Math.sin(x * Math.PI/2) * LEVEL;
+    }
+    if (ctx){
+      aL.getByteTimeDomainData(bufL); aR.getByteTimeDomainData(bufR);
+      var l = rms(bufL), r = rms(bufR);
+      mtrL.style.height = Math.min(100, l*420) + "%";
+      mtrR.style.height = Math.min(100, r*420) + "%";
+      lampL.classList.toggle('on', l > 0.01);
+      lampR.classList.toggle('on', r > 0.01);
+      var tot = l + r;
+      dot.style.left = (tot > 0.005 ? (r / tot) * 100 : 50) + "%";
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function rms(buf){
+    var s = 0;
+    for (var i=0;i<buf.length;i++){ var v = (buf[i]-128)/128; s += v*v; }
+    return Math.sqrt(s/buf.length);
+  }
+
+  document.querySelectorAll('[data-mode]').forEach(function(b){
+    b.addEventListener('click', function(){ start(b.dataset.mode); });
+  });
+  document.getElementById('stop').addEventListener('click', stop);
+  document.getElementById('srcTone').addEventListener('click', function(){ setSource("tone"); });
+  document.getElementById('srcNoise').addEventListener('click', function(){ setSource("noise"); });
+})();
+</script>
+</body>
+</html>
